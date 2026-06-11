@@ -63,6 +63,28 @@ async function fetchJSON(url) {
   return res.json();
 }
 
+/* Cache en localStorage con TTL: amortigua el rate limit de la API gratuita
+   (las series de 90 días apenas cambian entre recargas). */
+async function fetchJSONCached(url, ttlMs) {
+  const key = `ce-cache:${url}`;
+  try {
+    const hit = JSON.parse(localStorage.getItem(key));
+    if (hit && Date.now() - hit.t < ttlMs) return hit.v;
+  } catch (_) { /* cache corrupta: se ignora */ }
+  try {
+    const v = await fetchJSON(url);
+    try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v })); } catch (_) {}
+    return v;
+  } catch (e) {
+    // Si la red falla, servir cache vencida antes que nada
+    try {
+      const stale = JSON.parse(localStorage.getItem(key));
+      if (stale) return stale.v;
+    } catch (_) {}
+    throw e;
+  }
+}
+
 /* ---------- Estadística ---------- */
 function logReturns(prices) {
   const r = [];
@@ -317,50 +339,79 @@ async function renderFearGreed() {
 }
 
 /* ---------- Init ---------- */
+const TTL_MARKETS = 2 * 60 * 1000;   // precios/agregados: 2 min
+const TTL_SERIES = 30 * 60 * 1000;   // series de 90 días: 30 min
+
 async function init() {
   const badge = document.getElementById("liveBadge");
-  try {
-    const [markets, global, ...charts] = await Promise.all([
-      fetchJSON(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,binancecoin&order=market_cap_desc&price_change_percentage=24h,7d,30d,1y"
-      ),
-      fetchJSON("https://api.coingecko.com/api/v3/global"),
-      ...COINS.map((c) =>
-        fetchJSON(
-          `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${WINDOW_DAYS}&interval=daily`
-        )
-      ),
-    ]);
 
-    const seriesRaw = {};
-    const series = {};
+  const [marketsR, globalR, ...chartsR] = await Promise.allSettled([
+    fetchJSONCached(
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,binancecoin&order=market_cap_desc&price_change_percentage=24h,7d,30d,1y",
+      TTL_MARKETS
+    ),
+    fetchJSONCached("https://api.coingecko.com/api/v3/global", TTL_MARKETS),
+    ...COINS.map((c) =>
+      fetchJSONCached(
+        `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${WINDOW_DAYS}&interval=daily`,
+        TTL_SERIES
+      )
+    ),
+  ]);
+
+  const markets = marketsR.status === "fulfilled" ? marketsR.value : null;
+  const global = globalR.status === "fulfilled" ? globalR.value : null;
+  const chartsOk = chartsR.every((r) => r.status === "fulfilled");
+
+  let seriesRaw = null, series = null;
+  if (chartsOk) {
+    seriesRaw = {}; series = {};
     COINS.forEach((c, i) => {
-      seriesRaw[c.id] = charts[i].prices;
-      series[c.id] = charts[i].prices.map(([, p]) => p);
+      seriesRaw[c.id] = chartsR[i].value.prices;
+      series[c.id] = chartsR[i].value.prices.map(([, p]) => p);
     });
+  }
 
+  // Render parcial: cada bloque se pinta con los datos que estén disponibles
+  if (markets) {
     renderTape(markets);
-    renderGlobalStats(global);
-    renderRiskTable(markets, series);
+    renderCompareTable(markets);
+  }
+  if (global) renderGlobalStats(global);
+  if (markets && series) renderRiskTable(markets, series);
+  if (series) {
     renderCorrTable(series);
     renderChartBlocks(seriesRaw);
-    renderCompareTable(markets);
+  }
 
+  const allOk = markets && global && chartsOk;
+  if (allOk) {
     badge.classList.remove("error");
     badge.textContent = "DATOS EN VIVO";
     document.getElementById("lastUpdate").textContent =
       `Última actualización: ${new Date().toLocaleString("es-ES")} · Fuentes: CoinGecko, alternative.me · Ventana estadística: ${WINDOW_DAYS} días`;
-  } catch (e) {
-    console.error("Error cargando datos de mercado:", e);
+  } else if (markets || global || series) {
+    badge.classList.add("error");
+    badge.textContent = "DATOS PARCIALES";
+    document.getElementById("lastUpdate").textContent =
+      "Carga parcial: la API pública de CoinGecko limitó algunas consultas. Los bloques faltantes se completarán en el próximo refresco automático.";
+  } else {
     badge.classList.add("error");
     badge.textContent = "ERROR DE CONEXIÓN";
     document.getElementById("lastUpdate").textContent =
-      "No se pudieron cargar los datos. Verificá la conexión o el límite de la API (CoinGecko gratuita: ~30 req/min).";
+      "No se pudieron cargar los datos. Verificá la conexión o reintentá en unos minutos (límite de la API pública de CoinGecko).";
   }
 
   renderFearGreed();
+  return allOk;
 }
 
-init();
-// Refresco automático cada 3 minutos (respeta el rate limit de la API gratuita)
-setInterval(init, 180000);
+async function start() {
+  const ok = await init();
+  // Si la primera carga quedó incompleta por rate limit, reintentar antes
+  if (!ok) setTimeout(init, 45000);
+  // Refresco automático cada 3 minutos (respeta el rate limit de la API gratuita)
+  setInterval(init, 180000);
+}
+
+start();
