@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: cripto-economia
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
