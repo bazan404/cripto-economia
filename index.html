@@ -101,22 +101,27 @@
         Correlación de Pearson entre retornos logarítmicos diarios (90 días). Valores próximos a 1
         indican escaso beneficio de diversificación dentro del ecosistema.
       </p>
-      <div class="table-wrap narrow">
-        <table class="data-table" id="corrTable">
-          <thead>
-            <tr><th></th><th class="num">BTC</th><th class="num">ETH</th><th class="num">BNB</th></tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="4" class="loading-row">Cargando datos…</td></tr>
-          </tbody>
-        </table>
+      <div class="corr-layout">
+        <div class="table-wrap narrow">
+          <table class="data-table" id="corrTable">
+            <thead>
+              <tr><th></th><th class="num">BTC</th><th class="num">ETH</th><th class="num">BNB</th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" class="loading-row">Cargando datos…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <aside class="corr-insights" id="corrInsights">
+          <p class="loading-row">Cargando lectura…</p>
+        </aside>
       </div>
     </section>
 
     <!-- 4. SERIES DE PRECIOS -->
     <section id="series" class="section">
-      <h2><span class="sec-num">4.</span> Series de precios — 90 y 30 días</h2>
-      <p class="sec-note">Precio de cierre diario en USD, escala lineal. Panel izquierdo: ventana completa de 90 días; panel derecho: detalle de los últimos 30 días. Fuente: CoinGecko.</p>
+      <h2><span class="sec-num">4.</span> Series de precios — 90 días y 1 año</h2>
+      <p class="sec-note">Precio de cierre diario en USD, escala lineal. Panel izquierdo: ventana estadística de 90 días; panel derecho: perspectiva de 1 año. Fuente: CoinGecko.</p>
       <div id="chartBlocks"></div>
     </section>
 

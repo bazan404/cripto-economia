@@ -31,7 +31,8 @@ const COINS = [
   },
 ];
 
-const WINDOW_DAYS = 90;
+const WINDOW_DAYS = 90;   // ventana estadística (volatilidad, beta, correlaciones)
+const FETCH_DAYS = 365;   // serie descargada: 1 año (los 90 días se recortan de ella)
 
 /* ---------- Formato ---------- */
 const fmtUSD = (n, opts = {}) =>
@@ -207,6 +208,8 @@ function renderRiskTable(markets, series) {
 }
 
 /* ---------- Matriz de correlaciones ---------- */
+const fmtCorr = (n) => n.toFixed(2).replace(".", ",");
+
 function renderCorrTable(series) {
   const rets = {};
   for (const coin of COINS) rets[coin.symbol] = logReturns(series[coin.id]);
@@ -216,20 +219,44 @@ function renderCorrTable(series) {
     const cells = syms.map((colSym) => {
       if (rowSym === colSym) return `<td class="num corr-diag">1,00</td>`;
       const c = correlation(rets[rowSym], rets[colSym]);
-      return `<td class="num">${c.toFixed(2).replace(".", ",")}</td>`;
+      return `<td class="num">${fmtCorr(c)}</td>`;
     });
     return `<tr><td><strong>${rowSym}</strong></td>${cells.join("")}</tr>`;
   });
   document.querySelector("#corrTable tbody").innerHTML = rows.join("");
+
+  // Lectura analítica: pares extremos y correlación media de la ventana
+  const pairs = [];
+  for (let i = 0; i < syms.length; i++)
+    for (let j = i + 1; j < syms.length; j++)
+      pairs.push({ pair: `${syms[i]}–${syms[j]}`, c: correlation(rets[syms[i]], rets[syms[j]]) });
+  const maxP = pairs.reduce((a, b) => (b.c > a.c ? b : a));
+  const minP = pairs.reduce((a, b) => (b.c < a.c ? b : a));
+  const avg = mean(pairs.map((p) => p.c));
+
+  document.getElementById("corrInsights").innerHTML = `
+    <h3>Lectura de la ventana</h3>
+    <ul>
+      <li><span>Par más correlacionado</span><strong>${maxP.pair} (${fmtCorr(maxP.c)})</strong></li>
+      <li><span>Par menos correlacionado</span><strong>${minP.pair} (${fmtCorr(minP.c)})</strong></li>
+      <li><span>Correlación media</span><strong>${fmtCorr(avg)}</strong></li>
+    </ul>
+    <p>${
+      avg >= 0.7
+        ? "Con correlaciones medias por encima de 0,70, la diversificación intra-cripto aporta poca reducción de riesgo: la cobertura efectiva exige activos externos al ecosistema."
+        : avg >= 0.4
+        ? "Correlaciones moderadas: existe cierto margen de diversificación dentro del ecosistema, aunque limitado en episodios de estrés, cuando las correlaciones tienden a converger a 1."
+        : "Correlaciones bajas para el estándar del ecosistema: la ventana actual ofrece margen de diversificación inusual entre estos activos."
+    }</p>`;
 }
 
 /* ---------- Series de precios ---------- */
-function drawPriceChart(canvasId, points, color, maxTicks) {
+function drawPriceChart(canvasId, points, color, maxTicks, labelOpts) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
 
   const labels = points.map(([ts]) =>
-    new Date(ts).toLocaleDateString("es-ES", { day: "numeric", month: "short" })
+    new Date(ts).toLocaleDateString("es-ES", labelOpts || { day: "numeric", month: "short" })
   );
   const values = points.map(([, p]) => p);
 
@@ -284,16 +311,16 @@ function renderChartBlocks(seriesRaw) {
         <div class="chart-canvas"><canvas id="chart-${coin.id}-90"></canvas></div>
       </figure>
       <figure class="chart-block">
-        <figcaption><strong>${coin.symbol}</strong> — ${coin.name}, cierre diario USD (30 d)</figcaption>
-        <div class="chart-canvas"><canvas id="chart-${coin.id}-30"></canvas></div>
+        <figcaption><strong>${coin.symbol}</strong> — ${coin.name}, cierre diario USD (1 año)</figcaption>
+        <div class="chart-canvas"><canvas id="chart-${coin.id}-1y"></canvas></div>
       </figure>
     </div>`
   ).join("");
 
   for (const coin of COINS) {
     const points = seriesRaw[coin.id];
-    drawPriceChart(`chart-${coin.id}-90`, points, coin.color, 9);
-    drawPriceChart(`chart-${coin.id}-30`, points.slice(-31), coin.color, 6);
+    drawPriceChart(`chart-${coin.id}-90`, points.slice(-(WINDOW_DAYS + 1)), coin.color, 9);
+    drawPriceChart(`chart-${coin.id}-1y`, points, coin.color, 12, { month: "short", year: "2-digit" });
   }
 }
 
@@ -365,7 +392,7 @@ async function init() {
     fetchJSONCached("https://api.coingecko.com/api/v3/global", TTL_MARKETS),
     ...COINS.map((c) =>
       fetchJSONCached(
-        `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${WINDOW_DAYS}&interval=daily`,
+        `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${FETCH_DAYS}&interval=daily`,
         TTL_SERIES
       )
     ),
@@ -379,8 +406,10 @@ async function init() {
   if (chartsOk) {
     seriesRaw = {}; series = {};
     COINS.forEach((c, i) => {
-      seriesRaw[c.id] = chartsR[i].value.prices;
-      series[c.id] = chartsR[i].value.prices.map(([, p]) => p);
+      seriesRaw[c.id] = chartsR[i].value.prices; // serie anual completa (gráficos)
+      series[c.id] = chartsR[i].value.prices
+        .slice(-(WINDOW_DAYS + 1))
+        .map(([, p]) => p); // ventana de 90 días (estadísticas)
     });
   }
 
