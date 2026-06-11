@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: cripto-economia
+    name: infocripto
     runtime: static
     buildCommand: ""
     staticPublishPath: .
