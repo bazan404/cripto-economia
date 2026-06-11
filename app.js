@@ -224,64 +224,76 @@ function renderCorrTable(series) {
 }
 
 /* ---------- Series de precios ---------- */
+function drawPriceChart(canvasId, points, color, maxTicks) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+
+  const labels = points.map(([ts]) =>
+    new Date(ts).toLocaleDateString("es-ES", { day: "numeric", month: "short" })
+  );
+  const values = points.map(([, p]) => p);
+
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          data: values,
+          borderColor: color,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => fmtUSD(c.parsed.y) } },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: "#6b7280", maxTicksLimit: maxTicks, font: { size: 11 } },
+        },
+        y: {
+          grid: { color: "rgba(107,114,128,0.15)" },
+          ticks: {
+            color: "#6b7280",
+            font: { size: 11 },
+            callback: (v) => `$${fmtCompact(v)}`,
+          },
+        },
+      },
+    },
+  });
+}
+
 function renderChartBlocks(seriesRaw) {
   const container = document.getElementById("chartBlocks");
   container.innerHTML = COINS.map(
     (coin) => `
-    <figure class="chart-block">
-      <figcaption><strong>${coin.symbol}</strong> — ${coin.name}, cierre diario USD (${WINDOW_DAYS} d)</figcaption>
-      <div class="chart-canvas"><canvas id="chart-${coin.id}"></canvas></div>
-    </figure>`
+    <div class="chart-pair">
+      <figure class="chart-block">
+        <figcaption><strong>${coin.symbol}</strong> — ${coin.name}, cierre diario USD (${WINDOW_DAYS} d)</figcaption>
+        <div class="chart-canvas"><canvas id="chart-${coin.id}-90"></canvas></div>
+      </figure>
+      <figure class="chart-block">
+        <figcaption><strong>${coin.symbol}</strong> — ${coin.name}, cierre diario USD (30 d)</figcaption>
+        <div class="chart-canvas"><canvas id="chart-${coin.id}-30"></canvas></div>
+      </figure>
+    </div>`
   ).join("");
 
   for (const coin of COINS) {
     const points = seriesRaw[coin.id];
-    const labels = points.map(([ts]) =>
-      new Date(ts).toLocaleDateString("es-ES", { day: "numeric", month: "short" })
-    );
-    const values = points.map(([, p]) => p);
-    const ctx = document.getElementById(`chart-${coin.id}`);
-    if (!ctx) continue;
-
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            data: values,
-            borderColor: coin.color,
-            borderWidth: 1.5,
-            pointRadius: 0,
-            tension: 0,
-            fill: false,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (c) => fmtUSD(c.parsed.y) } },
-        },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: { color: "#6b7280", maxTicksLimit: 9, font: { size: 11 } },
-          },
-          y: {
-            grid: { color: "rgba(107,114,128,0.15)" },
-            ticks: {
-              color: "#6b7280",
-              font: { size: 11 },
-              callback: (v) => `$${fmtCompact(v)}`,
-            },
-          },
-        },
-      },
-    });
+    drawPriceChart(`chart-${coin.id}-90`, points, coin.color, 9);
+    drawPriceChart(`chart-${coin.id}-30`, points.slice(-31), coin.color, 6);
   }
 }
 

@@ -1,7 +1,8 @@
 :root {
-  --bg: #fcfcfa;
-  --surface: #ffffff;
-  --border: #d8d6cf;
+  --bg: #e6e3da;
+  --surface: #f4f2ea;
+  --surface-alt: #e9e6dc;
+  --border: #c8c4b6;
   --border-strong: #1f2937;
   --text: #1a1d23;
   --text-muted: #5d6470;
@@ -91,7 +92,7 @@ body {
 .status.error { color: var(--red); }
 
 /* Cinta de cotizaciones */
-.tape-wrap { border-top: 1px solid var(--border); background: #f4f3ef; }
+.tape-wrap { border-top: 1px solid var(--border); background: var(--surface-alt); }
 
 .tape {
   font-family: var(--mono);
@@ -100,6 +101,7 @@ body {
   padding-bottom: 7px;
   overflow-x: auto;
   white-space: nowrap;
+  text-align: center;
 }
 
 .tape-item strong { font-weight: 600; }
@@ -194,7 +196,7 @@ h2 {
   gap: 0;
   border: 1px solid var(--border);
   border-top: none;
-  background: #f4f3ef;
+  background: var(--surface-alt);
 }
 
 .inline-index {
@@ -245,11 +247,11 @@ h2 {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border-bottom: 2px solid var(--border-strong);
-  background: #f4f3ef;
+  background: var(--surface-alt);
 }
 
 .data-table tbody tr:last-child td { border-bottom: none; }
-.data-table tbody tr:nth-child(even) td { background: #fafaf7; }
+.data-table tbody tr:nth-child(even) td { background: #edebe2; }
 .data-table td.num { font-family: var(--mono); font-size: 0.84rem; }
 .data-table td:first-child { color: var(--text); }
 
@@ -258,10 +260,16 @@ h2 {
 .loading-row { text-align: center !important; color: var(--text-muted); }
 
 /* ---------- Gráficos ---------- */
+.chart-pair {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 .chart-block {
   border: 1px solid var(--border);
   background: var(--surface);
-  margin-bottom: 16px;
   padding: 14px 18px 18px;
 }
 
@@ -316,6 +324,7 @@ h2 {
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .nav-links { display: none; }
+  .chart-pair { grid-template-columns: 1fr; }
   .stat-card, .inline-index { border-right: none; border-bottom: 1px solid var(--border); }
   .stat-card:last-child, .inline-index:last-child { border-bottom: none; }
 }
