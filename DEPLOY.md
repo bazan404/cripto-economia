@@ -9,7 +9,8 @@ Render (o GitHub Pages) para obtener una URL compartible.
 - [x] Verificar que Git esté instalado — instalado Git 2.54.0 con `winget install Git.Git`.
 - [x] Inicializar el repositorio (`git init`) y hacer el primer commit.
 - [x] Autenticar con GitHub — GitHub CLI 2.93.0 instalado y autenticado como `bazan404`.
-- [x] Crear el repositorio remoto y hacer push — https://github.com/bazan404/cripto-economia
+- [x] Crear el repositorio remoto y hacer push — https://github.com/bazan404/InfoCripto (renombrado desde `cripto-economia`)
+- [x] Publicado en GitHub Pages — https://bazan404.github.io/InfoCripto/
 - [ ] Publicar (último paso, requiere un click):
   - **Opción Render (recomendada)**: hay un `render.yaml` en el repo. Entrar a https://dashboard.render.com/blueprints → New Blueprint Instance → conectar el repo `bazan404/cripto-economia` → Apply. Alternativa manual: New → Static Site → repo `cripto-economia` → publish directory `.` → sin build command.
   - **Opción GitHub Pages**: Settings del repo → Pages → Deploy from branch `main` / root.
